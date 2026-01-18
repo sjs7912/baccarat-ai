@@ -1,119 +1,110 @@
 import streamlit as st
 
-# 1. 페이지 설정 및 다크 테마 기본값
+# 1. 페이지 설정 (가장 상단에 위치해야 함)
 st.set_page_config(page_title="바카라 분석기", layout="centered")
 
-# 2. 사진 속 UI와 똑같이 만들기 위한 스타일 시트
+# 2. 커스텀 스타일 (에러를 일으키는 복잡한 문법 제외)
 st.markdown("""
     <style>
-    /* 배경색 및 폰트 설정 */
-    .stApp { background-color: #0F1117; }
-    
-    /* 상단 노란색 테두리 박스 */
-    .header-container {
-        border: 2px solid #F1C40F;
-        border-radius: 20px;
-        padding: 40px 20px;
+    .stApp { background-color: #121212; }
+    .main-box {
+        border: 3px solid #F1C40F;
+        border-radius: 15px;
+        padding: 40px;
         text-align: center;
-        background-color: #1A1C23;
+        background-color: #1E1E1E;
         margin-bottom: 20px;
     }
-    .header-main { color: white; font-size: 50px; font-weight: bold; margin: 0; }
-    .header-sub { color: #F1C40F; font-size: 22px; margin-top: 10px; }
-
-    /* 기록지(흰색 박스) */
-    .road-map {
+    .road-map-bg {
         background-color: white;
-        border-radius: 15px;
-        min-height: 180px;
+        border-radius: 10px;
         padding: 15px;
+        min-height: 150px;
         display: flex;
         flex-direction: row;
-        margin-bottom: 30px;
         overflow-x: auto;
+        margin-bottom: 20px;
     }
-    .grid-col { display: flex; flex-direction: column; width: 32px; }
-    .circle {
-        width: 26px; height: 26px; border-radius: 50%;
+    .grid-column { display: flex; flex-direction: column; width: 30px; }
+    .dot {
+        width: 24px; height: 24px; border-radius: 50%;
         margin: 3px; display: flex; align-items: center;
-        justify-content: center; font-size: 11px; color: white; font-weight: bold;
+        justify-content: center; font-size: 10px; color: white; font-weight: bold;
     }
-
-    /* 버튼 스타일 조정 */
+    /* 버튼 크기 및 색상 강제 지정 */
     div.stButton > button {
+        width: 100%;
         height: 100px !important;
-        border-radius: 15px !important;
         font-size: 24px !important;
         font-weight: bold !important;
-        color: white !important;
-        border: none !important;
+        border-radius: 15px !important;
     }
-    /* 플레이어 버튼 (파란색) */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(1) button {
-        background-color: #2E5BFF !important;
-    }
-    /* 뱅커 버튼 (빨간색) */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(2) button {
-        background-color: #FF4B4B !important;
-    }
-    
-    /* 하단 보조 버튼 스타일 */
-    .bottom-btns button { height: 50px !important; font-size: 16px !important; background-color: #2D2F36 !important; }
     </style>
 """, unsafe_allow_value=True)
 
-# 3. 데이터 로직
+# 3. 데이터 로직 (5칸 꺾기 기능)
 if 'history' not in st.session_state:
     st.session_state.history = []
 
-def get_logic(history):
-    cols = [[]]; c_idx = 0
+def get_road_data(history):
+    columns = [[]]
+    c_idx = 0
     for i, res in enumerate(history):
-        if i > 0 and res != history[i-1]: c_idx += 1; cols.append([])
-        elif len(cols[c_idx]) >= 5: c_idx += 1; cols.append([])
-        cols[c_idx].append(res)
-    return cols
+        if i > 0 and res != history[i-1]:
+            c_idx += 1
+            columns.append([])
+        elif len(columns[c_idx]) >= 5: # 5칸 차면 옆으로 꺾기
+            c_idx += 1
+            columns.append([])
+        columns[c_idx].append(res)
+    return columns
 
-# --- UI 그리기 ---
+# --- 화면 그리기 ---
 
-# 상단 영역
-st.markdown(f'''
-    <div class="header-container">
-        <p class="header-main">플레이어</p>
-        <p class="header-sub">15,000원 배팅</p>
+# 상단 전광판 (노란 테두리)
+st.markdown("""
+    <div class="main-box">
+        <h1 style="color: white; margin: 0; font-size: 50px;">플레이어</h1>
+        <p style="color: #F1C40F; font-size: 22px;">15,000원 배팅</p>
     </div>
-''', unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# 기록지 영역
-road_data = get_logic(st.session_state.history)
-html_road = '<div class="road-map">'
+# 기록판 (흰색 박스 내 꺾기 로직 반영)
+road_data = get_road_data(st.session_state.history)
+grid_html = '<div class="road-map-bg">'
 for col in road_data:
-    html_road += '<div class="grid-col">'
+    grid_html += '<div class="grid-column">'
     for item in col:
-        color = "#FF4B4B" if item == "B" else "#2E5BFF"
-        html_road += f'<div class="circle" style="background-color: {color};">{item}</div>'
-    html_road += '</div>'
-html_road += '</div>'
-st.markdown(html_road, unsafe_allow_html=True)
+        color = "#FF4B4B" if item == "B" else "#007BFF"
+        grid_html += f'<div class="dot" style="background-color: {color};">{item}</div>'
+    grid_html += '</div>'
+grid_html += '</div>'
+st.markdown(grid_html, unsafe_allow_html=True)
 
 # 메인 버튼 (가로 배치)
 col1, col2 = st.columns(2)
 with col1:
-    if st.button("● 플레이어", key="p_btn"):
-        st.session_state.history.append("P"); st.rerun()
+    if st.button("🔵 플레이어", key="p_btn"):
+        st.session_state.history.append("P")
+        st.rerun()
 with col2:
-    if st.button("● 뱅커", key="b_btn"):
-        st.session_state.history.append("B"); st.rerun()
+    if st.button("🔴 뱅커", key="b_btn"):
+        st.session_state.history.append("B")
+        st.rerun()
 
-# 하단 버튼 (카메라, 취소, 리셋)
-st.markdown('<div class="bottom-btns">', unsafe_allow_html=True)
-b_col1, b_col2, b_col3 = st.columns([1, 1, 1])
-with b_col1:
-    if st.button("📸 카메라"): st.toast("준비 중")
-with b_col2:
+st.write(" ")
+
+# 하단 보조 버튼 (카메라, 취소, 리셋)
+f_col1, f_col2, f_col3 = st.columns([1, 1, 1])
+with f_col1:
+    if st.button("📸 카메라"):
+        st.toast("카메라 연결 중...")
+with f_col2:
     if st.button("↩️ 취소"):
-        if st.session_state.history: st.session_state.history.pop(); st.rerun()
-with b_col3:
+        if st.session_state.history:
+            st.session_state.history.pop()
+            st.rerun()
+with f_col3:
     if st.button("♻️ 리셋"):
-        st.session_state.history = []; st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+        st.session_state.history = []
+        st.rerun()
