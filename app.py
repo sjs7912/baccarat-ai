@@ -1,94 +1,99 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import streamlit as st
 
-const BaccaratAnalyzer = () => {
-  const [history, setHistory] = useState([]); // 게임 기록 저장
+# 페이지 설정
+st.set_page_config(page_title="바카라 분석기", layout="centered")
 
-  // 1. 핵심 로직: 5칸 기준 꺾기 및 새로운 열 이동
-  const renderGrid = () => {
-    let columns = [[]];
-    let currentCol = 0;
+# CSS를 이용한 UI 커스텀 (버튼 크기 및 가로 배치)
+st.markdown("""
+    <style>
+    .stButton > button {
+        width: 100%;
+        height: 80px;
+        font-size: 20px;
+        font-weight: bold;
+        border-radius: 10px;
+    }
+    .player-btn button { background-color: #3498DB !important; color: white !important; }
+    .banker-btn button { background-color: #E74C3C !important; color: white !important; }
+    .header-box {
+        background-color: #1E1E1E;
+        padding: 20px;
+        border-radius: 10px;
+        border: 2px solid #F1C40F;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .circle {
+        width: 30px; height: 30px; border-radius: 15px;
+        display: flex; align-items: center; justify-content: center;
+        color: white; font-weight: bold; margin: 2px; font-size: 12px;
+    }
+    </style>
+""", unsafe_allow_value=True)
 
-    history.forEach((res, index) => {
-      const prevRes = history[index - 1];
-      
-      // 결과가 바뀌면 새 열로 이동
-      if (prevRes && res !== prevRes) {
-        currentCol++;
-        columns[currentCol] = [];
-      } 
-      // 결과가 같은데 5칸이 다 찼으면 옆으로 꺾기(새 열로 이동)
-      else if (columns[currentCol].length >= 5) {
-        currentCol++;
-        columns[currentCol] = [];
-      }
-      
-      columns[currentCol].push(res);
-    });
+# 데이터 초기화
+if 'history' not in st.session_state:
+    st.session_state.history = []
 
-    return (
-      <ScrollView horizontal contentContainerStyle={styles.gridContainer}>
-        {columns.map((col, i) => (
-          <View key={i} style={styles.column}>
-            {col.map((item, j) => (
-              <View key={j} style={[styles.circle, { backgroundColor: item === 'B' ? '#E74C3C' : '#3498DB' }]}>
-                <Text style={styles.circleText}>{item}</Text>
-              </View>
-            ))}
-          </View>
-        ))}
-      </ScrollView>
-    );
-  };
+# --- 로직: 기록판 꺾기 계산 ---
+def get_grid(history):
+    columns = [[]]
+    curr_col = 0
+    for i, res in enumerate(history):
+        if i > 0 and res != history[i-1]: # 결과 바뀌면 새 줄
+            curr_col += 1
+            columns.append([])
+        elif len(columns[curr_col]) >= 5: # 5칸 다 차면 옆으로 꺾기
+            curr_col += 1
+            columns.append([])
+        columns[curr_col].append(res)
+    return columns
 
-  return (
-    <View style={styles.container}>
-      {/* 상단: 추천 베팅 */}
-      <View style={styles.header}>
-        <Text style={styles.recommendation}>플레이어 15,000원 배팅</Text>
-      </View>
+# --- UI 레이아웃 ---
+st.markdown('<div class="header-box"><h1 style="color: #F1C40F;">플레이어</h1><p style="color: #F1C40F;">15,000원 배팅</p></div>', unsafe_allow_html=True)
 
-      {/* 중앙: 기록판 */}
-      <View style={styles.boardArea}>{renderGrid()}</View>
+# 기록판 표시 (가로 스크롤 가능하게)
+cols_data = get_grid(st.session_state.history)
+grid_ui = st.container()
+with grid_ui:
+    cols = st.columns(max(len(cols_data), 10)) # 최소 10열 확보
+    for i, column_data in enumerate(cols_data):
+        if i < len(cols):
+            with cols[i]:
+                for item in column_data:
+                    color = "#E74C3C" if item == "B" else "#3498DB"
+                    st.markdown(f'<div class="circle" style="background-color: {color};">{item}</div>', unsafe_allow_html=True)
 
-      {/* 메인 버튼: 가로 배치 및 크기 확대 */}
-      <View style={styles.mainButtonRow}>
-        <TouchableOpacity style={[styles.betBtn, styles.playerBtn]} onPress={() => setHistory([...history, 'P'])}>
-          <Text style={styles.btnText}>플레이어</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.betBtn, styles.bankerBtn]} onPress={() => setHistory([...history, 'B'])}>
-          <Text style={styles.btnText}>뱅커</Text>
-        </TouchableOpacity>
-      </View>
+st.write("---")
 
-      {/* 하단: 기능 버튼 (카메라, 취소, 리셋) */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.iconBtn}><Text>📸</Text></TouchableOpacity> {/* 카메라 */}
-        <TouchableOpacity style={styles.subBtn} onPress={() => setHistory(history.slice(0, -1))}><Text>취소</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.subBtn} onPress={() => setHistory([])}><Text>리셋</Text></TouchableOpacity>
-        <View style={{ width: 40 }} /> {/* 우측 이모티콘 제거된 빈 공간 */}
-      </View>
-    </View>
-  );
-};
+# 메인 버튼 (가로 배치)
+btn_col1, btn_col2 = st.columns(2)
+with btn_col1:
+    st.markdown('<div class="player-btn">', unsafe_allow_html=True)
+    if st.button("플레이어"):
+        st.session_state.history.append("P")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20 },
-  header: { height: 100, justifyContent: 'center', alignItems: 'center', borderWeight: 2, borderColor: '#F1C40F', borderRadius: 10, marginBottom: 20 },
-  recommendation: { fontSize: 24, color: '#F1C40F', fontWeight: 'bold' },
-  boardArea: { height: 200, backgroundColor: '#FFFFFF', borderRadius: 10, padding: 10 },
-  gridContainer: { flexDirection: 'row' },
-  column: { width: 35, flexDirection: 'column' },
-  circle: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center', margin: 2 },
-  circleText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
-  mainButtonRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 30 },
-  betBtn: { flex: 1, height: 80, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginHorizontal: 5 },
-  playerBtn: { backgroundColor: '#2980B9' },
-  bankerBtn: { backgroundColor: '#C0392B' },
-  btnText: { color: 'white', fontSize: 20, fontWeight: 'bold' },
-  bottomBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' },
-  iconBtn: { width: 50, height: 50, backgroundColor: '#444', borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
-  subBtn: { padding: 15, backgroundColor: '#333', borderRadius: 10 },
-});
+with btn_col2:
+    st.markdown('<div class="banker-btn">', unsafe_allow_html=True)
+    if st.button("뱅커"):
+        st.session_state.history.append("B")
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-export default BaccaratAnalyzer;
+# 하단 기능바
+st.write("")
+low_col1, low_col2, low_col3 = st.columns([1, 1, 2])
+with low_col1:
+    if st.button("📸"): # 카메라 버튼 (기능은 추후 구현)
+        st.info("카메라 기능을 준비 중입니다.")
+with low_col2:
+    if st.button("취소"):
+        if st.session_state.history:
+            st.session_state.history.pop()
+            st.rerun()
+with low_col3:
+    if st.button("리셋"):
+        st.session_state.history = []
+        st.rerun()
